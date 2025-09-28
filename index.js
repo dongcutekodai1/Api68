@@ -407,13 +407,14 @@ app.get('/api/hitpro', async (req, res) => {
 
       cachedResult = {
         Phien: latest.Phien,
-        Ket_qua: latest.Ket_qua,
-        Tong: latest.Tong,
         Xuc_xac_1: latest.Xuc_xac_1,
         Xuc_xac_2: latest.Xuc_xac_2,
         Xuc_xac_3: latest.Xuc_xac_3,
+        Tong: latest.Tong,
+        Ket_qua: latest.Ket_qua,
+        id: latest.id,
         Pattern: pattern,
-        phien_tiep_theo: latest.Phien + 1,
+        phien_hien_tai: latest.Phien - 1,
         Du_doan: duDoan // ✅ Dự đoán từ AI
       };
     }
