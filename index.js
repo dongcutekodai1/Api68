@@ -40,7 +40,7 @@ app.get('/history', async (req, res) => {
             Xuc_xac_1: latestSession.xuc_xac_1,
             Xuc_xac_2: latestSession.xuc_xac_2,
             Xuc_xac_3: latestSession.xuc_xac_3,
-            id: "rruongdong1920"
+            id: "truongdong1920"
         };
 
         // Kiểm tra nếu đã tồn tại trong historyCache, thì không thêm lại
