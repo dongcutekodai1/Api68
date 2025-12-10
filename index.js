@@ -35,7 +35,7 @@ app.get('/history', async (req, res) => {
 
         const result = {
             ket_qua: latestSession.ket_qua,
-            Phien: parseInt(latestSession.phien),
+            Phien: parseInt(latestSession.Phien),
             tong: latestSession.tong,
             xuc_xac_1: latestSession.xuc_xac_1,
             xuc_xac_2: latestSession.xuc_xac_2,
