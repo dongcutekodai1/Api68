@@ -33,15 +33,15 @@ app.get('/history', async (req, res) => {
         const latestKey = endSessions[0];
         const latestSession = data[latestKey];
 
-        const result = {
-            ket_qua: latestSession.ket_qua,
-            Phien: parseInt(latestSession.Phien),
-            tong: latestSession.tong,
-            xuc_xac_1: latestSession.xuc_xac_1,
-            xuc_xac_2: latestSession.xuc_xac_2,
-            xuc_xac_3: latestSession.xuc_xac_3,
-            id: "truongdong1920"
-        };
+        const payload = {
+    ket_qua: latestSession?.ket_qua ?? null,
+    Phien: parseInt(latestSession?.Phien ?? 0),
+    tong: latestSession?.tong ?? 0,
+    xuc_xac_1: latestSession?.xuc_xac_1 ?? 0,
+    xuc_xac_2: latestSession?.xuc_xac_2 ?? 0,
+    xuc_xac_3: latestSession?.xuc_xac_3 ?? 0,
+    id: "truongdong1920"
+};
 
         // Kiểm tra nếu đã tồn tại trong historyCache, thì không thêm lại
         if (!historyCache.some(entry => entry.Phien === result.Phien)) {
