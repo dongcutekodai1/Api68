@@ -3,23 +3,25 @@ const axios = require('axios');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Bộ nhớ tạm để lưu 50 trận gần nhất
+// Bộ nhớ tạm lưu 50 trận gần nhất
 let historyCache = [];
 
-// ✅ Trang chủ - dùng để ping nhanh hoặc test
+// Trang chủ
 app.get('/', (req, res) => {
     res.send('✅ Server alive - six8gamebai-history-hdxpro');
 });
 
-// ✅ Endpoint kiểm tra server sống
+// Endpoint kiểm tra server sống
 app.get('/server-alive', (req, res) => {
     res.json({ status: 'alive', timestamp: new Date().toISOString() });
 });
 
-// ✅ Endpoint lấy 1 trận gần nhất từ Firebase và lưu vào cache
+// Lấy 1 trận gần nhất từ Firebase
 app.get('/history', async (req, res) => {
     try {
-        const response = await axios.get('https://app-tai-xiu-default-rtdb.firebaseio.com/taixiu_sessions/current.json');
+        const response = await axios.get(
+            'https://app-tai-xiu-default-rtdb.firebaseio.com/taixiu_sessions/current.json'
+        );
         const data = response.data;
 
         const endSessions = Object.keys(data)
@@ -33,39 +35,41 @@ app.get('/history', async (req, res) => {
         const latestKey = endSessions[0];
         const latestSession = data[latestKey];
 
-        const payload = {
-    ket_qua: result.ket_qua,
-    Phien: result.Phien,
-    tong: result.tong,
-    xuc_xac_1: result.xuc_xac_1,
-    xuc_xac_2: result.xuc_xac_2,
-    xuc_xac_3: result.xuc_xac_3,
-    id: "truongdong1920"
-};
+        // 🔥 FIX: tạo object result đúng từ latestSession
+        const result = {
+            ket_qua: latestSession.ket_qua,
+            Phien: parseInt(latestSession.Phien),
+            tong: latestSession.tong,
+            xuc_xac_1: latestSession.xuc_xac_1,
+            xuc_xac_2: latestSession.xuc_xac_2,
+            xuc_xac_3: latestSession.xuc_xac_3,
+            id: "truongdong1920"
+        };
 
-        // Kiểm tra nếu đã tồn tại trong historyCache, thì không thêm lại
+        // Lưu vào cache nếu chưa có
         if (!historyCache.some(entry => entry.Phien === result.Phien)) {
-            historyCache.unshift(result); // thêm vào đầu mảng
+            historyCache.unshift(result);
             if (historyCache.length > 50) {
-                historyCache.pop(); // xóa phần tử cuối nếu quá 50
+                historyCache.pop();
             }
         }
 
         res.json(result);
+
     } catch (error) {
         console.error("Lỗi khi gọi API:", error.message);
         res.status(500).json({ error: "Lỗi khi lấy dữ liệu" });
     }
 });
 
-// ✅ Endpoint trả về 50 trận gần nhất
+// Trả về 50 trận gần nhất
 app.get('/api/history', (req, res) => {
     res.json(historyCache);
 });
 
-// ✅ Self-ping để giữ server luôn hoạt động trên Render
-const SELF_URL = "https://six8gamebai-history-hdxpro.onrender.com/"; // Gửi request tới chính server
-const pingInterval = 60 * 1000; // 60 giây
+// Self ping Render
+const SELF_URL = "https://six8gamebai-history-hdxpro.onrender.com/";
+const pingInterval = 60 * 1000;
 
 function startSelfPing() {
     setInterval(async () => {
@@ -78,7 +82,7 @@ function startSelfPing() {
     }, pingInterval);
 }
 
-// ✅ Khởi động server
+// Start server
 app.listen(PORT, () => {
     console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
     startSelfPing();
