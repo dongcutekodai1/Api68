@@ -19,7 +19,7 @@ app.get('/server-alive', (req, res) => {
 // ✅ Endpoint lấy 1 trận gần nhất từ Firebase và lưu vào cache
 app.get('/history', async (req, res) => {
     try {
-        const response = await axios.get('https://api68-md5-default-rtdb.firebaseio.com/taixiu_sessions.json');
+        const response = await axios.get('https://app-tai-xiu-default-rtdb.firebaseio.com/taixiu_sessions/current.json');
         const data = response.data;
 
         const endSessions = Object.keys(data)
