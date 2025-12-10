@@ -34,12 +34,12 @@ app.get('/history', async (req, res) => {
         const latestSession = data[latestKey];
 
         const payload = {
-    ket_qua: latestSession?.ket_qua ?? null,
-    Phien: parseInt(latestSession?.Phien ?? 0),
-    tong: latestSession?.tong ?? 0,
-    xuc_xac_1: latestSession?.xuc_xac_1 ?? 0,
-    xuc_xac_2: latestSession?.xuc_xac_2 ?? 0,
-    xuc_xac_3: latestSession?.xuc_xac_3 ?? 0,
+    ket_qua: result.ket_qua,
+    Phien: result.Phien,
+    tong: result.tong,
+    xuc_xac_1: result.xuc_xac_1,
+    xuc_xac_2: result.xuc_xac_2,
+    xuc_xac_3: result.xuc_xac_3,
     id: "truongdong1920"
 };
 
