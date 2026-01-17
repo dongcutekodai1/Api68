@@ -1,86 +1,196 @@
-const express = require('express');
-const axios = require('axios');
-const app = express();
-const PORT = process.env.PORT || 3000;
+const WebSocket = require("ws");
+const express = require("express");
+const cors = require("cors");
 
-// Bộ nhớ tạm để lưu 50 trận gần nhất
-let historyCache = [];
+const PORT = 3000;
+const API_ID = "@truongdong1920";
+const MAX_HISTORY = 50;
 
-// Trang chủ
-app.get('/', (req, res) => {
-    res.send('✅ Server alive - api68');
-});
+class Son789 {
+    constructor(url) {
+        this.url = url;
+        this.ws = null;
 
-// Endpoint kiểm tra server sống
-app.get('/server-alive', (req, res) => {
-    res.json({ status: 'alive', timestamp: new Date().toISOString() });
-});
+        this.tables = {
+            tx: this.initTable("tai_xiu"),
+            md5: this.initTable("md5")
+        };
+    }
 
-// Lấy trận mới nhất từ Firebase (KHÔNG DÙNG _end nữa)
-app.get('/history', async (req, res) => {
-    try {
-        const response = await axios.get(
-            'https://app-tai-xiu-default-rtdb.firebaseio.com/taixiu_sessions/current.json'
-        );
+    initTable(name) {
+        return {
+            name,
+            htr: [],
+            lastPrediction: null,
+            win_correct: 0,
+            lose: 0,
+            total_predict: 0,
+            history: []
+        };
+    }
 
-        const latestSession = response.data;
+    connect() {
+        this.ws = new WebSocket(this.url, {
+            headers: {
+                Origin: "https://play.son789.site",
+                "User-Agent": "Mozilla/5.0"
+            }
+        });
 
-        // Nếu Firebase trả về null
-        if (!latestSession || typeof latestSession !== 'object') {
-            console.error("❌ Firebase không có dữ liệu hợp lệ:", latestSession);
-            return res.status(500).json({ error: "Firebase trả về dữ liệu rỗng" });
+        this.ws.on("open", () => {
+            console.log("✅ WS Connected");
+            this.auth();
+        });
+
+        this.ws.on("message", msg => this.onMessage(msg));
+        this.ws.on("close", () => {
+            console.log("❌ WS Closed – reconnect");
+            setTimeout(() => this.connect(), 5000);
+        });
+    }
+
+    auth() {
+        this.ws.send(JSON.stringify([1, "MiniGame", "son789apia", "WangLin1@", {}]));
+    }
+
+    subscribe() {
+        this.ws.send(JSON.stringify([6, "MiniGame", "taixiuPlugin", { cmd: 1005 }]));
+        this.ws.send(JSON.stringify([6, "MiniGame", "taixiuMd5Plugin", { cmd: 1105 }]));
+    }
+
+    onMessage(data) {
+        try {
+            const m = JSON.parse(data);
+
+            if (m[0] === 5 && m[1]?.cmd === 100) {
+                console.log("🔐 Auth OK");
+                this.subscribe();
+            }
+
+            if (m[0] === 5 && m[1]?.cmd === 1005 && m[1].htr) {
+                this.tables.tx.htr = m[1].htr;
+            }
+
+            if (m[0] === 5 && m[1]?.cmd === 1105 && m[1].htr) {
+                this.tables.md5.htr = m[1].htr;
+            }
+        } catch {}
+    }
+
+    duDoan(htr) {
+        if (htr.length < 5) return null;
+
+        let tai = 0, xiu = 0;
+        htr.slice(-5).forEach(v => {
+            (v.d1 + v.d2 + v.d3 >= 11) ? tai++ : xiu++;
+        });
+
+        return {
+            du_doan: tai > xiu ? "tai" : "xiu",
+            do_tin_cay: Math.min(95, 50 + Math.abs(tai - xiu) * 10)
+        };
+    }
+
+    buildResult(table) {
+        if (table.htr.length < 2) return { error: "Chưa có dữ liệu" };
+
+        const last = table.htr.at(-1);
+        const tong = last.d1 + last.d2 + last.d3;
+        const ket_qua = tong >= 11 ? "tai" : "xiu";
+
+        let ket_qua_truoc = null;
+
+        if (table.lastPrediction) {
+            const isWin = table.lastPrediction.du_doan === ket_qua;
+            table.total_predict++;
+
+            if (isWin) table.win_correct++;
+            else table.lose++;
+
+            ket_qua_truoc = {
+                phien: table.lastPrediction.phien,
+                du_doan: table.lastPrediction.du_doan,
+                ket_qua_thuc_te: ket_qua,
+                result: isWin ? "WIN" : "LOSE"
+            };
+
+            table.history.unshift({
+                ...ket_qua_truoc,
+                ban: table.name,
+                timestamp: new Date().toISOString()
+            });
+
+            table.history = table.history.slice(0, MAX_HISTORY);
         }
 
-        // Chuẩn hoá dữ liệu trả về
-        const result = {
-            ket_qua: latestSession.ket_qua,
-            Phien: latestSession.Phien,
-            tong: latestSession.tong,
-            xuc_xac_1: latestSession.xuc_xac_1,
-            xuc_xac_2: latestSession.xuc_xac_2,
-            xuc_xac_3: latestSession.xuc_xac_3,
-            id: "truongdong1920"
+        const du_doan = this.duDoan(table.htr);
+        table.lastPrediction = {
+            phien: last.sid,
+            du_doan: du_doan?.du_doan
         };
 
-        // Lưu vào lịch sử nếu chưa có
-        if (!historyCache.some(entry => entry.Phien === result.Phien)) {
-            historyCache.unshift(result);
-            if (historyCache.length > 50) {
-                historyCache.pop();
+        return {
+            id: API_ID,
+            ban: table.name,
+            id_phien: last.sid,
+            xuc_xac: [last.d1, last.d2, last.d3],
+            tong,
+            ket_qua,
+            du_doan_phien_tiep_theo: du_doan,
+            thong_ke: {
+                win_dung: table.win_correct,
+                lose: table.lose,
+                tong_du_doan: table.total_predict,
+                win_rate: table.total_predict
+                    ? ((table.win_correct / table.total_predict) * 100).toFixed(2) + "%"
+                    : "0%"
             }
-        }
-
-        // Trả kết quả cho client
-        res.json(result);
-
-    } catch (error) {
-        console.error("Lỗi khi gọi Firebase:", error.message);
-        res.status(500).json({ error: "Lỗi khi lấy dữ liệu từ Firebase" });
+        };
     }
-});
-
-// Trả về 50 trận gần nhất
-app.get('/api/history', (req, res) => {
-    res.json(historyCache);
-});
-
-// Self-ping Render
-const SELF_URL = "https://api68-6tko.onrender.com/";
-const pingInterval = 60 * 1000;
-
-function startSelfPing() {
-    setInterval(async () => {
-        try {
-            const res = await axios.get(SELF_URL);
-            console.log(`[Self-Ping] OK: ${res.status} at ${new Date().toISOString()}`);
-        } catch (err) {
-            console.error(`[Self-Ping] Lỗi: ${err.message}`);
-        }
-    }, pingInterval);
 }
 
-// Start server
-app.listen(PORT, () => {
-    console.log(`🚀 Server đang chạy tại http://localhost:${PORT}`);
-    startSelfPing();
+/* ================= SERVER ================= */
+
+const app = express();
+app.use(cors());
+
+const son789 = new Son789("wss://api.jiusyss.me/websocket");
+son789.connect();
+
+app.get("/", (_, res) => res.send("SON789 API RUNNING"));
+
+app.get("/api/tx", (_, res) => {
+    res.json(son789.buildResult(son789.tables.tx));
+});
+
+app.get("/api/md5", (_, res) => {
+    res.json(son789.buildResult(son789.tables.md5));
+});
+
+app.get("/api/all", (_, res) => {
+    res.json({
+        tai_xiu: son789.buildResult(son789.tables.tx),
+        md5: son789.buildResult(son789.tables.md5)
+    });
+});
+
+/* 🔥 LỊCH SỬ DỰ ĐOÁN */
+app.get("/lichsududoan", (_, res) => {
+    res.json({
+        id: API_ID,
+        tx: son789.tables.tx.history,
+        md5: son789.tables.md5.history
+    });
+});
+
+app.get("/api/status", (_, res) => {
+    res.json({
+        ws_connected: son789.ws?.readyState === 1,
+        tx_sessions: son789.tables.tx.htr.length,
+        md5_sessions: son789.tables.md5.htr.length
+    });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+    console.log(`🚀 API running http://IP:${PORT}`);
 });
